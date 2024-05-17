@@ -1,58 +1,45 @@
 import spacy
+from fastapi import FastAPI, status
 from gensim.models import KeyedVectors
 
+# Constants
 WORD_EMBEDDINGS: str = 'models/word2vec_100_3_polish.bin'
 LEMMATIZER_WEIGHTS: str = 'pl_core_news_lg'
 TOP_N: int = 1000
 
-def guess(word_vectors, lemmatizer, target: str) -> tuple[str, int]:
-    # Cosine similarity between two vectors
-    g: str  = ''
-    result = None
-    while result is None:
-        g = input("Guess: ")
-        try:
-            lem = lemmatizer(g)
-            if len(lem) > 1:
-                print(f"Please enter only a single word")
-                continue
-            g = lem[0].lemma_
-            result = word_vectors.similarity(target, g)
-        except:
-            print(f"Word '{g}' not found in our dictionary")
-    return g, result
+# Globals
+app = FastAPI()
+lemmatizer = spacy.load(LEMMATIZER_WEIGHTS)
+word_vectors = KeyedVectors.load(WORD_EMBEDDINGS)
 
-def main():
-    print("Loading word embeddings...", end='')
-    word_vectors = KeyedVectors.load(WORD_EMBEDDINGS)
-    print("Done!")
+# Target word
+TARGET = "jabłko"
+try:
+    closest = word_vectors.similar_by_word(TARGET, topn=TOP_N)
+except:
+    print("Word not in dictionary!")
 
-    print("Loading lemmatizer...", end='')
-    lemmatizer = spacy.load(LEMMATIZER_WEIGHTS)
-    print("Done!")
+@app.get("/guess/{guess}")
+async def guess_word(guess: str):  # Cosine similarity between guess and target words
+    similarity: float = 0
+    closeness: int = -1
 
-    TARGET = input("Target word? ")
-
+    word = guess.strip().lower()
     try:
-        closest = word_vectors.similar_by_word(TARGET, topn=TOP_N)
+        lem = lemmatizer(word)
+        if len(lem) > 1:
+            print(f"Please enter only a single word")
+            return {"error": "More than one word entered"}
+        word = lem[0].lemma_.strip().lower()
+        if word == TARGET:
+            return {"word": word, "similarity": str(1.0), "close": str(0)}
+        similarity = word_vectors.similarity(TARGET, word)
+        for i, (w, s) in enumerate(closest):
+            if w == word:
+                closeness = TOP_N - (i + 1)
+                break
     except:
-        print("Word not in dictionary!")
-        return
+        print(f"Word '{word}' not found in our dictionary")
+        return {"error": "Not found in dictionary"}
 
-    while True:
-        g, sim = guess(word_vectors, lemmatizer, TARGET)
-        print(f"{g} [{sim:.3f}]", end = '')
-        if g == TARGET:
-            print(" Congratz!")
-            break
-        for i, (word, s) in enumerate(closest):
-            if g == word:
-                print(f" [{TOP_N - (i + 1)} / 1000]", end = '')
-        print("")
-
-    print("The closest 100 words were:")
-    for i, word in enumerate(closest[:100]):
-        print(f"{i}. {word}")
-
-if __name__ == '__main__':
-    main()
+    return {"word": word, "similarity": str(similarity), "close": str(closeness)}
