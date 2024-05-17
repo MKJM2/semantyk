@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Semantyk</title>
+        <script src="https://cdn.tailwindcss.com"></script>
+    </head>
+    <body class="bg-gray-100 text-gray-900 font-sans">
+        <div class="container mx-auto px-4 w-full">
+            <h1 class="text-3xl font-bold text-center my-6">Semantyk</h1>
+            <p class="mb-3 text-black-500 mx-auto w-8/12 text-center">
+                Czy potrafisz odgadnąć sekretne słowo? Semantyk pokaże Ci, jak
+                bardzo semantycznie podobne jest Twoje słowo do sekretnego
+                słowa.
+            </p>
+
+            <div class="max-w-md mx-auto">
+                <input
+                    type="text"
+                    id="guessInput"
+                    placeholder="Twoje słowo"
+                    class="form-input mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:border-indigo-500"
+                />
+                <button
+                    id="guessButton"
+                    class="mt-4 w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+                >
+                    Odgadnij!
+                </button>
+            </div>
+            <table class="table-auto w-10/12 mt-8 mx-auto">
+                <thead>
+                    <tr class="bg-indigo-600 text-white">
+                        <th class="px-4 py-2 text-left">#</th>
+                        <th class="px-4 py-2 text-left">Słowo</th>
+                        <th class="px-4 py-2 text-left">Podobieństwo</th>
+                        <th class="px-4 py-2 text-left">Jak blisko jesteś?</th>
+                    </tr>
+                </thead>
+                <tbody id="guesses" class="text-gray-700">
+                    <!-- Table rows will be added here -->
+                </tbody>
+            </table>
+        </div>
+        <script>
+            let latest = "";
+            let guesses = [];
+
+            document
+                .getElementById("guessInput")
+                .addEventListener("keypress", function (e) {
+                    if (e.key === "Enter") {
+                        e.preventDefault();
+                        submitGuess();
+                    }
+                });
+
+            document
+                .getElementById("guessButton")
+                .addEventListener("click", submitGuess);
+
+            function submitGuess() {
+                const guess = document.getElementById("guessInput").value;
+                if (guesses.includes(guess)) {
+                    latest = guess;
+                    return;
+                }
+                const url = `http://localhost:7000/guess/${encodeURIComponent(guess)}`;
+                fetch(url)
+                    .then((response) => response.json())
+                    .then((data) => {
+                        if (data.error) {
+                            console.error(data.error);
+                            return;
+                        }
+                        latest = data.word;
+                        updateTable(data);
+                        document.getElementById("guessInput").value = ""; // Clear input
+                    })
+                    .catch((error) => console.error("Error:", error));
+            }
+
+            function updateTable(guess) {
+                guesses.sort(
+                    (a, b) =>
+                        parseFloat(b.similarity) - parseFloat(a.similarity),
+                ); // Sort by similarity
+                console.log(guess);
+                guesses.unshift(guess);
+                console.log(guesses);
+
+                const table = document.getElementById("guesses");
+                table.innerHTML = ""; // Clear existing table rows
+
+                guesses.forEach((data, index) => {
+                    const row = table.insertRow();
+                    if (data.word == latest) {
+                        row.innerHTML = `<td class="border px-4 py-2"><b>${index + 1}</b></td>
+                                      <td class="border px-4 py-2">${data.word}</td>
+                                      <td class="border px-4 py-2">${data.similarity}</td>
+                                      <td class="border px-4 py-2">${getCloseness(data)}</td>`;
+                    } else {
+                        row.innerHTML = `<td class="border px-4 py-2">${index + 1}</td>
+                                        <td class="border px-4 py-2">${data.word}</td>
+                                        <td class="border px-4 py-2">${data.similarity}</td>
+                                        <td class="border px-4 py-2">${getCloseness(data)}</td>`;
+                    }
+                });
+            }
+
+            function getProgressBar(data) {
+                if (data.close != -1) {
+                    return `<div class="w-full bg-gray-200 rounded-full">
+                                <div class="bg-blue-500
+                                  w-full
+                                  text-xs
+                                  font-medium
+                                  text-blue-100
+                                  text-center
+                                  p-0.5
+                                  leading-none
+                                  rounded-l-full"
+                                  style="width: ${data.close / 10}%">
+                                  ${data.close}/1000
+                                </div>
+                            </div>`;
+                }
+                return "N/A";
+            }
+
+            function getCloseness(data) {
+                if (data.close == -1) {
+                    if (data.similarity >= 0.6) {
+                        return "Gorąco 🔥";
+                    } else if (data.similarity >= 0.3) {
+                        return "Cieplej 😎";
+                    } else if (data.similarity >= 0) {
+                        return "Zimno 🧊";
+                    } else if (data.similarity <= 0) {
+                        return "Lodowato 🥶";
+                    }
+                } else if (data.close == 0) {
+                    return "✨Gratulacje!✨";
+                } else {
+                    return getProgressBar(data);
+                }
+            }
+        </script>
+    </body>
+</html>

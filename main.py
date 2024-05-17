@@ -1,5 +1,6 @@
 import spacy
 from fastapi import FastAPI, status
+from fastapi.middleware.cors import CORSMiddleware
 from gensim.models import KeyedVectors
 
 # Constants
@@ -11,6 +12,15 @@ TOP_N: int = 1000
 app = FastAPI()
 lemmatizer = spacy.load(LEMMATIZER_WEIGHTS)
 word_vectors = KeyedVectors.load(WORD_EMBEDDINGS)
+
+# Configure CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allows all origins
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all methods
+    allow_headers=["*"],  # Allows all headers
+)
 
 # Target word
 TARGET = "jabłko"
