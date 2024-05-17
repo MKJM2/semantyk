@@ -32,10 +32,10 @@
             <table class="table-auto w-10/12 mt-8 mx-auto">
                 <thead>
                     <tr class="bg-indigo-600 text-white">
-                        <th class="px-4 py-2 text-left">#</th>
-                        <th class="px-4 py-2 text-left">Słowo</th>
-                        <th class="px-4 py-2 text-left">Podobieństwo</th>
-                        <th class="px-4 py-2 text-left">Jak blisko jesteś?</th>
+                        <th class="px-2 py-2 text-left">#</th>
+                        <th class="px-2 py-2 text-left">Słowo</th>
+                        <th class="px-2 py-2 text-left">Podobieństwo</th>
+                        <th class="px-2 py-2 text-left">Jak blisko jesteś?</th>
                     </tr>
                 </thead>
                 <tbody id="guesses" class="text-gray-700">
@@ -62,10 +62,6 @@
 
             function submitGuess() {
                 const guess = document.getElementById("guessInput").value;
-                if (guesses.includes(guess)) {
-                    latest = guess;
-                    return;
-                }
                 const url = `http://localhost:7000/guess/${encodeURIComponent(guess)}`;
                 fetch(url)
                     .then((response) => response.json())
@@ -74,21 +70,29 @@
                             console.error(data.error);
                             return;
                         }
+
                         latest = data.word;
-                        updateTable(data);
                         document.getElementById("guessInput").value = ""; // Clear input
+                        for (let i = 0; i < guesses.length; ++i) {
+                            if (guesses[i].word == data.word) {
+                                updateTable();
+                                return;
+                            }
+                        }
+                        updateTable(data);
                     })
                     .catch((error) => console.error("Error:", error));
             }
 
-            function updateTable(guess) {
+            function updateTable(guess = null) {
                 guesses.sort(
                     (a, b) =>
                         parseFloat(b.similarity) - parseFloat(a.similarity),
                 ); // Sort by similarity
-                console.log(guess);
-                guesses.unshift(guess);
-                console.log(guesses);
+
+                if (guess) {
+                    guesses.unshift(guess);
+                }
 
                 const table = document.getElementById("guesses");
                 table.innerHTML = ""; // Clear existing table rows
@@ -96,22 +100,22 @@
                 guesses.forEach((data, index) => {
                     const row = table.insertRow();
                     if (data.word == latest) {
-                        row.innerHTML = `<td class="border px-4 py-2"><b>${index + 1}</b></td>
-                                      <td class="border px-4 py-2">${data.word}</td>
-                                      <td class="border px-4 py-2">${data.similarity}</td>
-                                      <td class="border px-4 py-2">${getCloseness(data)}</td>`;
+                        row.innerHTML = `<td class="border px-2 py-2"><b>${index + 1}</b></td>
+                                      <td class="border px-2 py-2"><b>${data.word}</b></td>
+                                      <td class="border px-2 py-2">${parseFloat(data.similarity).toFixed(2)}</td>
+                                      <td class="border px-2 py-2">${getCloseness(data)}</td>`;
                     } else {
-                        row.innerHTML = `<td class="border px-4 py-2">${index + 1}</td>
-                                        <td class="border px-4 py-2">${data.word}</td>
-                                        <td class="border px-4 py-2">${data.similarity}</td>
-                                        <td class="border px-4 py-2">${getCloseness(data)}</td>`;
+                        row.innerHTML = `<td class="border px-2 py-2">${index + 1}</td>
+                                        <td class="border px-2 py-2">${data.word}</td>
+                                        <td class="border px-2 py-2">${parseFloat(data.similarity).toFixed(2)}</td>
+                                        <td class="border px-2 py-2">${getCloseness(data)}</td>`;
                     }
                 });
             }
 
             function getProgressBar(data) {
                 if (data.close != -1) {
-                    return `<div class="w-full bg-gray-200 rounded-full">
+                    return `<div class="w-full bg-gray-500 rounded-full">
                                 <div class="bg-blue-500
                                   w-full
                                   text-xs
@@ -124,6 +128,7 @@
                                   style="width: ${data.close / 10}%">
                                   ${data.close}/1000
                                 </div>
+
                             </div>`;
                 }
                 return "N/A";
