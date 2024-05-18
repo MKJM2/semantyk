@@ -35,21 +35,35 @@ async def guess_word(guess: str):  # Cosine similarity between guess and target 
     closeness: int = -1
 
     word = guess.strip().lower()
-    try:
-        lem = lemmatizer(word)
-        if len(lem) > 1:
-            print(f"Please enter only a single word")
-            return {"error": "More than one word entered"}
-        word = lem[0].lemma_.strip().lower()
-        if word == TARGET:
-            return {"word": word, "similarity": str(1.0), "close": str(0)}
+    found: bool = False
+    try:  # Query word embeddings directly first
         similarity = word_vectors.similarity(TARGET, word)
-        for i, (w, s) in enumerate(closest):
-            if w == word:
-                closeness = TOP_N - (i + 1)
-                break
-    except:
-        print(f"Word '{word}' not found in our dictionary")
-        return {"error": "Not found in dictionary"}
+        found = True
+    except:  # Word not in dictionary?
+        print(f"Word '{word}' not found in dictionary. Lemmatizing...")
+
+    if not found:
+        try:  # If failed, try lemmatizing the word first and query word embeddings
+            lem = lemmatizer(word)
+            if len(lem) > 1:
+                print(f"Please enter only a single word")
+                return {"error": "More than one word entered"}
+            word = lem[0].lemma_.strip().lower()
+            similarity = word_vectors.similarity(TARGET, word)
+            found = True
+        except:
+            print(f"Word '{word}' not found in our dictionary")
+            return {"error": "Not found in dictionary"}
+
+    if not found:
+        return {"error": "Word processing failed"}
+
+    if word == TARGET:
+        return {"word": word, "similarity": str(TOP_N), "close": str(1)}
+
+    for i, (w, s) in enumerate(closest):
+        if w == word:
+            closeness = TOP_N - (i + 1)
+            break
 
     return {"word": word, "similarity": str(similarity), "close": str(closeness)}
